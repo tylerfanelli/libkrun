@@ -477,6 +477,7 @@ static void enable_rosetta()
 
 int main(int argc, char **argv)
 {
+        int ret;
 	struct ifreq ifr;
 	int sockfd;
 	char localhost[] = "localhost\0";
@@ -488,18 +489,23 @@ int main(int argc, char **argv)
 	char *rlimits;
 	char **config_argv, **exec_argv;
 
+	if (mount_filesystems() < 0) {
+		printf("Couldn't mount filesystems, bailing out\n");
+		exit(-2);
+	}
+
 #ifdef SEV
-        snp_attest("http://0.0.0.0:8000", "test");
+        ret = snp_attest("http://0.0.0.0:8000", "test");
+        if (ret < 0) {
+                printf("Coudln't attest SNP environment\n");
+                exit(-3);
+        }
 
 	if (chroot_luks() < 0) {
 		printf("Couldn't switch to LUKS volume, bailing out\n");
 		exit(-1);
 	}
 #endif
-	if (mount_filesystems() < 0) {
-		printf("Couldn't mount filesystems, bailing out\n");
-		exit(-2);
-	}
 
 	setsid();
 	ioctl(0, TIOCSCTTY, 1);
