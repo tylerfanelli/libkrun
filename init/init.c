@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 
 #include "jsmn.h"
+#include "tee/snp_attest.h"
 
 #define CMDLINE_SECRET_PATH "/sfs/secrets/coco/cmdline"
 #define CONFIG_FILE_PATH "/.krun_config.json"
@@ -67,7 +68,7 @@ static char * get_luks_passphrase(int *pass_len)
 	int len;
 	int fd;
 
-	pass = getenv("KRUN_PASS");
+	pass = "mysecretpassphrase";
 	if (pass) {
 		*pass_len = strnlen(pass, MAX_PASS_SIZE);
 		return pass;
@@ -151,8 +152,6 @@ static int chroot_luks()
 		close(pipefd[1]);
 		waitpid(pid, &wstatus, 0);
 	}
-
-	memset(pass, 0, pass_len);
 
 	printf("Mounting LUKS root filesystem\n");
 
@@ -490,6 +489,8 @@ int main(int argc, char **argv)
 	char **config_argv, **exec_argv;
 
 #ifdef SEV
+        snp_attest("http://0.0.0.0:8000", "test");
+
 	if (chroot_luks() < 0) {
 		printf("Couldn't switch to LUKS volume, bailing out\n");
 		exit(-1);

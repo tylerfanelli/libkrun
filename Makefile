@@ -4,10 +4,23 @@ INIT_BINARY = init/init
 ABI_VERSION=1
 FULL_VERSION=1.4.8
 
+INIT_SRC = init/init.c
+SNP_INIT_SRC =	init/tee/snp_attest.c		\
+		init/tee/snp_attest.h		\
+		init/tee/kbs/kbs.h		\
+		init/tee/kbs/kbs_util.c		\
+		init/tee/kbs/kbs_types.c	\
+		init/tee/kbs/kbs_curl.c
+
+SEV_LD_FLAGS =	-lcurl -lidn2 -lssl -lcrypto -lzstd -lz -lbrotlidec-static \
+		-lbrotlicommon-static
+
 ifeq ($(SEV),1)
     VARIANT = -sev
     FEATURE_FLAGS := --features amd-sev
     INIT_DEFS := -DSEV=1
+    INIT_DEFS += $(SEV_LD_FLAGS)
+    INIT_SRC += $(SNP_INIT_SRC)
 endif
 
 ifeq ($(ROSETTA),1)
@@ -42,8 +55,8 @@ all: $(LIBRARY_RELEASE_$(OS))
 
 debug: $(LIBRARY_DEBUG_$(OS))
 
-$(INIT_BINARY): init/init.c
-	gcc -O2 -static -Wall $(INIT_DEFS) -o $@ init/init.c
+$(INIT_BINARY): $(INIT_SRC)
+	gcc -O2 -static -Wall $(INIT_DEFS) -o $@ $(INIT_SRC) $(INIT_DEFS)
 
 $(LIBRARY_RELEASE_$(OS)): $(INIT_BINARY)
 	cargo build --release $(FEATURE_FLAGS)
