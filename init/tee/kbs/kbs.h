@@ -5,6 +5,8 @@
 
 #include <curl/curl.h>
 
+#include "../snp_attest.h"
+
 // kbs_util.c
 char *tee_str(int);
 
@@ -22,6 +24,7 @@ enum curl_post_type {
 // kbs_types.c
 int kbs_request_marshal(char *, int, char *);
 int kbs_challenge(CURL *, char *, char *, char *);
+int kbs_attest(CURL *, struct snp_report *, char *);
 
 // kbs_curl.c
 int kbs_curl_post(CURL *, char *, void *, void *, int);

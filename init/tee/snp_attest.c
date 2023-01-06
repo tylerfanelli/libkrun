@@ -15,7 +15,7 @@
 static int snp_get_report(struct snp_report *, char *);
 
 int
-snp_attest(char *url, char *workload_id)
+snp_attest(char *url, char *workload_id, char *passphrase)
 {
         int ret;
         char json[1024], nonce[1024];
@@ -46,6 +46,12 @@ snp_attest(char *url, char *workload_id)
                 return -1;
         }
 
+        ret = kbs_attest(curl, &report, passphrase);
+        if (ret < 0) {
+                printf("ERROR: Unable to attest SNP attestation report\n");
+                return -1;
+        }
+
         return 0;
 }
 
@@ -69,7 +75,7 @@ snp_get_report(struct snp_report *report, char *nonce)
         memset(&report, 0, sizeof(report));
         memset(&guest_req, 0, sizeof(guest_req));
 
-        strcpy((char *) &req.user_data, nonce);
+        strcpy((char *) req.user_data, nonce);
 
         guest_req.msg_version = 1;
         guest_req.req_data = (__u64) &req;

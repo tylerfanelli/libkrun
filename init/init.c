@@ -495,7 +495,9 @@ int main(int argc, char **argv)
 	}
 
 #ifdef SEV
-        ret = snp_attest("http://0.0.0.0:8000", "test");
+        char passphrase[1024];
+
+        ret = snp_attest("http://0.0.0.0:8000", "test", passphrase);
         if (ret < 0) {
                 printf("Coudln't attest SNP environment\n");
                 exit(-3);

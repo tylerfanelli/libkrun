@@ -24,31 +24,50 @@ union tcb_version {
 	uint64_t raw;
 };
 
+/*
+ * SNP attestation report structure. Based off of the attestation report in
+ * firmware version 1.51.
+ */
 struct snp_report {
-        uint32_t          version;			/* 0x000 */
-	uint32_t          guest_svn;			/* 0x004 */
-	uint64_t          policy;			/* 0x008 */
-	uint8_t           family_id[16];		/* 0x010 */
-	uint8_t           image_id[16];			/* 0x020 */
-	uint32_t          vmpl;				/* 0x030 */
-	uint32_t          signature_algo;		/* 0x034 */
-	union tcb_version platform_version;		/* 0x038 */
-	uint64_t          platform_info;		/* 0x040 */
-	uint32_t          flags;			/* 0x048 */
-	uint32_t          reserved0;			/* 0x04C */
-	uint8_t           report_data[64];		/* 0x050 */
-	uint8_t           measurement[48];		/* 0x090 */
-	uint8_t           host_data[32];		/* 0x0C0 */
-	uint8_t           id_key_digest[48];		/* 0x0E0 */
-	uint8_t           author_key_digest[48];	/* 0x110 */
-	uint8_t           report_id[32];		/* 0x140 */
-	uint8_t           report_id_ma[32];		/* 0x160 */
-	union tcb_version reported_tcb;			/* 0x180 */
-	uint8_t           reserved1[24];		/* 0x188 */
-	uint8_t           chip_id[64];			/* 0x1A0 */
-        uint8_t           reserved2[192];		/* 0x1E0 */
-	struct signature  signature;			/* 0x2A0 */
-};
+        uint32_t                version;
+        uint32_t                guest_svn;
+        uint64_t                policy;
+        uint8_t                 family_id[16];
+        uint8_t                 image_id[16];
+        uint32_t                vmpl;
+        uint32_t                signature_algo;
+        union tcb_version      current_tcb;
+
+        /*
+         * TODO: Change to a "struct platform_info".
+         */
+        uint64_t                platform_info;
+
+        uint32_t                author_key_en : 1;
+        uint32_t                _reserved_0 : 31;
+        uint8_t                 report_data[64];
+        uint8_t                 measurement[48];
+        uint8_t                 host_data[32];
+        uint8_t                 id_key_digest[48];
+        uint8_t                 author_key_digest[48];
+        uint8_t                 report_id[32];
+        uint8_t                 report_id_ma[32];
+        union tcb_version       reported_tcb;
+        uint8_t                 _reserved_1[24];
+        uint8_t                 chip_id[64];
+        union tcb_version      committed_tcb;
+        uint8_t                 current_build;
+        uint8_t                 current_minor;
+        uint8_t                 current_major;
+        uint8_t                 _reserved_2;
+        uint8_t                 committed_build;
+        uint8_t                 committed_minor;
+        uint8_t                 committed_major;
+        uint8_t                 _reserved_3;
+        union tcb_version      launch_tcb;
+        uint8_t                 _reserved_4[168];
+        struct signature        signature;
+} /* TODO: include this?: __attribute__((packed)) */;
 
 struct msg_report_resp {
 	uint32_t status;
@@ -58,7 +77,7 @@ struct msg_report_resp {
 };
 
 // snp_attest.c
-int snp_attest(char *, char *);
+int snp_attest(char *, char *, char *);
 
 // snp_dbg.c
 void snp_report_print(struct snp_report *);
