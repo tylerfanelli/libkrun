@@ -79,7 +79,4 @@ struct msg_report_resp {
 // snp_attest.c
 int snp_attest(char *, char *, char *);
 
-// snp_dbg.c
-void snp_report_print(struct snp_report *);
-
 #endif /* _SNP_ATTEST */

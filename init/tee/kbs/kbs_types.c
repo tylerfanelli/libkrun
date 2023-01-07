@@ -45,7 +45,7 @@ kbs_challenge(CURL *curl, char *url, char *json, char *nonce)
 int
 kbs_attest(CURL *curl, struct snp_report *report, char *passphrase)
 {
-        char json[0x4000];      // 4page report size
+        char json[0x1000];      // 4page report size
 
         kbs_attestation_marshal(report, json);
 
@@ -228,6 +228,8 @@ kbs_attestation_marshal_signature(char *json, struct signature *sig)
         strcat(json, buf);
 
         kbs_attestation_marshal_bytes(json, "r", sig->r, 72);
+        strcat(json, ",");
+
         kbs_attestation_marshal_bytes(json, "s", sig->s, 72);
 
         strcat(json, "}");
