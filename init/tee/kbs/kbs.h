@@ -9,6 +9,8 @@
 
 // kbs_util.c
 char *tee_str(int);
+char *kbs_find_cookie(char *, char *);
+int kbs_read_cookie_val(char *, char *);
 
 enum tee {
         TEE_SEV,
@@ -19,14 +21,15 @@ enum tee {
 
 enum curl_post_type {
         KBS_CURL_REQ,
+        KBS_CURL_ATTEST,
 };
 
 // kbs_types.c
 int kbs_request_marshal(char *, int, char *);
 int kbs_challenge(CURL *, char *, char *, char *);
-int kbs_attest(CURL *, struct snp_report *, char *);
+int kbs_attest(CURL *, char *, struct snp_report *);
 
 // kbs_curl.c
-int kbs_curl_post(CURL *, char *, void *, void *, int);
+int kbs_curl_post(CURL *, char *, char *, char *, int);
 
 #endif /* _KBS */

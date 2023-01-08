@@ -46,7 +46,7 @@ snp_attest(char *url, char *workload_id, char *passphrase)
                 return -1;
         }
 
-        ret = kbs_attest(curl, &report, passphrase);
+        ret = kbs_attest(curl, url, &report);
         if (ret < 0) {
                 printf("ERROR: Unable to attest SNP attestation report\n");
                 return -1;
