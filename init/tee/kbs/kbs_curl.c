@@ -16,7 +16,7 @@ kbs_curl_post(CURL *curl, char *url, char *in, char *out, int type)
 {
         int ret;
         CURLcode code;
-        char full_url[100], *cookie_label, session_id[100];
+        char full_url[100], *session_id_label, session_id[100];
         struct curl_slist *cookies;
 
         if (!in)
@@ -50,18 +50,18 @@ kbs_curl_post(CURL *curl, char *url, char *in, char *out, int type)
                 if (code != CURLE_OK)
                         return KBS_CURL_ERR("CURLOPT_COOKIELIST");
 
-                cookie_label = NULL;
+                session_id_label = NULL;
                 while (cookies) {
-                        cookie_label = kbs_find_cookie(cookies->data, "session_id");
-                        if (cookie_label)
+                        session_id_label = kbs_find_cookie(cookies->data, "session_id");
+                        if (session_id_label)
                                 break;
                         cookies = cookies->next;
                 }
 
-                if (cookie_label == NULL)
+                if (session_id_label == NULL)
                         return KBS_CURL_ERR("No session_id cookie found");
 
-                ret = kbs_read_cookie_val(cookie_label, session_id);
+                ret = kbs_read_cookie_val(session_id_label, session_id);
                 if (ret < 0)
                         return KBS_CURL_ERR("No session_id value for cookie");
 
@@ -93,6 +93,56 @@ kbs_curl_post(CURL *curl, char *url, char *in, char *out, int type)
         return 0;
 }
 
+int
+kbs_curl_get(CURL *curl, char *url, char *out, int type)
+{
+        int ret;
+        CURLcode code;
+        char full_url[100], *session_id_label, session_id[100];
+        struct curl_slist *cookies;
+
+        if (type != KBS_CURL_GET_KEY)
+                return KBS_CURL_ERR("Invalid KBS operation");
+
+        code = curl_easy_getinfo(curl, CURLINFO_COOKIELIST, &cookies);
+        if (code != CURLE_OK)
+                return KBS_CURL_ERR("Cannot retrieve cURL cookies");
+
+        while (cookies != NULL) {
+                session_id_label = kbs_find_cookie(cookies->data, "session_id");
+                if (session_id_label)
+                        break;
+
+                cookies = cookies->next;
+        }
+
+        if (session_id_label == NULL)
+                return KBS_CURL_ERR("Couldn't find cookie labeled\n");
+
+        ret = kbs_read_cookie_val(session_id_label, session_id);
+        if (ret < 0)
+                return KBS_CURL_ERR("Couldn't read cookie value\n");
+
+        code = kbs_curl_set_headers(curl, (char *) session_id);
+                if (code != CURLE_OK)
+                        return KBS_CURL_ERR("CURLOPT_HTTPHEADER");
+
+        sprintf(full_url, "%s/kbs/v0/key/test", url);
+
+        code =  curl_easy_setopt(curl, CURLOPT_URL, full_url);
+        if (code != CURLE_OK)
+                return KBS_CURL_ERR("CURLOPT_URL");
+
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, out);
+
+        code = curl_easy_perform(curl);
+        if (code != CURLE_OK && code != CURLE_WRITE_ERROR)
+                return KBS_CURL_ERR("CURL_EASY_PERFORM");
+
+        return 0;
+}
+
 static CURLcode
 kbs_curl_set_headers(CURL *curl, char *session)
 {
@@ -115,7 +165,7 @@ kbs_curl_set_headers(CURL *curl, char *session)
 static inline int
 KBS_CURL_ERR(char *errmsg)
 {
-        printf("ERROR (kbs_curl_post): %s\n", errmsg);
+        printf("ERROR (kbs_curl): %s\n", errmsg);
 
         return -1;
 }

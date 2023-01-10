@@ -70,6 +70,20 @@ kbs_attest(CURL *curl, char *url, struct snp_report *report)
         return 0;
 }
 
+int
+kbs_get_key(CURL *curl, char *url, char *passphrase)
+{
+        int ret;
+
+        ret = kbs_curl_get(curl, url, passphrase, KBS_CURL_GET_KEY);
+        if (ret < 0) {
+                printf("ERROR: could not complete KBS key retrieval\n");
+                return -1;
+        }
+
+        return 0;
+}
+
 static void
 kbs_attestation_marshal(struct snp_report *report, char *json)
 {

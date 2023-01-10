@@ -52,6 +52,14 @@ snp_attest(char *url, char *workload_id, char *passphrase)
                 return -1;
         }
 
+        curl_easy_reset(curl);
+
+        ret = kbs_get_key(curl, url, passphrase);
+        if (ret < 0) {
+                printf("ERROR: Unable to retrieve key from KBS server\n");
+                return -1;
+        }
+
         return 0;
 }
 

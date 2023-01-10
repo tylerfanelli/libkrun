@@ -22,14 +22,17 @@ enum tee {
 enum curl_post_type {
         KBS_CURL_REQ,
         KBS_CURL_ATTEST,
+        KBS_CURL_GET_KEY,
 };
 
 // kbs_types.c
 int kbs_request_marshal(char *, int, char *);
 int kbs_challenge(CURL *, char *, char *, char *);
 int kbs_attest(CURL *, char *, struct snp_report *);
+int kbs_get_key(CURL *, char *, char *);
 
 // kbs_curl.c
 int kbs_curl_post(CURL *, char *, char *, char *, int);
+int kbs_curl_get(CURL *, char *, char *, int);
 
 #endif /* _KBS */
