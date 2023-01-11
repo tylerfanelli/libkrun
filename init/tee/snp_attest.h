@@ -4,6 +4,7 @@
 #define _SNP_ATTEST
 
 #include <stdint.h>
+#include <uuid/uuid.h>
 
 #define SEV_GUEST_DEV "/dev/sev-guest"
 
@@ -22,6 +23,14 @@ union tcb_version {
 		uint8_t microcode;
 	};
 	uint64_t raw;
+};
+
+struct cert_table {
+        struct cert_table_entry {
+                uuid_t guid;
+                uint32_t offset;
+                uint32_t len;
+        } *entry;
 };
 
 /*
