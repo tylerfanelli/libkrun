@@ -6,7 +6,7 @@
 
 #include "kbs.h"
 
-static void kbs_attestation_marshal(struct snp_report *, char *);
+static void kbs_attestation_marshal(struct snp_report *, uint8_t *, size_t, char *);
 static void kbs_attestation_marshal_tcb(char *, char *, union tcb_version *);
 static void kbs_attestation_marshal_signature(char *, struct signature *);
 static void kbs_attestation_marshal_bytes(char *, char *, uint8_t *, size_t);
@@ -45,17 +45,18 @@ kbs_challenge(CURL *curl, char *url, char *json, char *nonce)
 }
 
 int
-kbs_attest(CURL *curl, char *url, struct snp_report *report)
+kbs_attest(CURL *curl, char *url, struct snp_report *report, uint8_t *certs,
+        size_t certs_size)
 {
         int ret;
-        char json[0x1000], errmsg[200];
+        char json[0x3000], errmsg[200];
 
-        kbs_attestation_marshal(report, json);
+        kbs_attestation_marshal(report, certs, certs_size, json);
         struct snp_report x;
 
         memset((void *) &x, 0, sizeof(struct snp_report));
 
-        kbs_attestation_marshal(&x, json);
+        kbs_attestation_marshal(&x, certs, certs_size, json);
         strcpy(errmsg, "");
 
         ret = kbs_curl_post(curl, url, json, errmsg, KBS_CURL_ATTEST);
@@ -85,7 +86,8 @@ kbs_get_key(CURL *curl, char *url, char *passphrase)
 }
 
 static void
-kbs_attestation_marshal(struct snp_report *report, char *json)
+kbs_attestation_marshal(struct snp_report *report, uint8_t *certs,
+        size_t certs_size, char *json)
 {
         char buf[4096];
 

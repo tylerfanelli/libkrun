@@ -24,6 +24,8 @@ snp_attest(char *url, char *workload_id, char *passphrase)
         char json[1024], nonce[1024];
         CURL *curl;
         struct snp_report report;
+        uint8_t *certs;
+        size_t certs_size;
 
         ret = kbs_request_marshal(json, TEE_SNP, workload_id);
         if (ret < 0) {
@@ -43,9 +45,6 @@ snp_attest(char *url, char *workload_id, char *passphrase)
                 return -1;
         }
 
-        uint8_t *certs;
-        size_t certs_size;
-
         certs = NULL;
         certs_size = 0;
 
@@ -56,7 +55,7 @@ snp_attest(char *url, char *workload_id, char *passphrase)
                 return -1;
         }
 
-        ret = kbs_attest(curl, url, &report);
+        ret = kbs_attest(curl, url, &report, certs, certs_size);
         if (ret < 0) {
                 printf("ERROR: Unable to attest SNP attestation report\n");
                 return -1;

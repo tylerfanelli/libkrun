@@ -28,7 +28,7 @@ enum curl_post_type {
 // kbs_types.c
 int kbs_request_marshal(char *, int, char *);
 int kbs_challenge(CURL *, char *, char *, char *);
-int kbs_attest(CURL *, char *, struct snp_report *);
+int kbs_attest(CURL *, char *, struct snp_report *, uint8_t *, size_t);
 int kbs_get_key(CURL *, char *, char *);
 
 // kbs_curl.c
