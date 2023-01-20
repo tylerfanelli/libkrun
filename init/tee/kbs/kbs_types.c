@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "kbs.h"
+#include "../../jsmn.h"
 
 static void kbs_attestation_marshal(struct snp_report *, uint8_t *, size_t, char *);
 static void kbs_attestation_marshal_tcb(char *, char *, union tcb_version *);
@@ -40,6 +41,9 @@ kbs_challenge(CURL *curl, char *url, char *json, char *nonce)
         }
 
         printf("nonce: |%s|\n", nonce);
+
+        jsmn_parser parser;
+        jsmntok_t *tokens; 
 
         return 0;
 }
