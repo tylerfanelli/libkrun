@@ -74,7 +74,7 @@ kbs_curl_post(CURL *curl, char *url, char *in, char *out, int type)
 
                 session_id_label = NULL;
                 while (cks) {
-                        session_id_label = find_cookie(cks->data, "session_id");
+                        session_id_label = find_cookie(cks->data, "kbs-session-id");
 
                         if (session_id_label)
                                 break;
@@ -118,6 +118,7 @@ kbs_curl_post(CURL *curl, char *url, char *in, char *out, int type)
 
         code = curl_easy_perform(curl);
         if (code != CURLE_OK && code != CURLE_WRITE_ERROR) {
+		printf("cURL error: %s\n", curl_easy_strerror(code));
                 KBS_CURL_ERR("CURL_EASY_PERFORM");
         }
 
@@ -150,7 +151,7 @@ kbs_curl_get(CURL *curl, char *url, char *wid, char *out, int type)
          * this session ID.
          */
         while (cookies != NULL) {
-                session_id_label = find_cookie(cookies->data, "session_id");
+                session_id_label = find_cookie(cookies->data, "kbs-session-id");
                 if (session_id_label)
                         break;
 
@@ -176,7 +177,7 @@ kbs_curl_get(CURL *curl, char *url, char *wid, char *out, int type)
          * The location of the KBS key is located at
          * $ATTESTATION_URL/kbs/v0/key/$WORKLOAD_ID.
          */
-        sprintf(full_url, "%s/kbs/v0/key/%s", url, wid);
+        sprintf(full_url, "%s/kbs/v0/resource/passphrase", url);
 
         if (curl_easy_setopt(curl, CURLOPT_URL, full_url) != CURLE_OK) {
                 KBS_CURL_ERR("CURLOPT_URL");
@@ -213,7 +214,7 @@ kbs_curl_set_headers(CURL *curl, char *session)
          * Add the session ID cookie if the session ID exists.
          */
         if (session) {
-                sprintf(session_buf, "Cookie: session_id=%s", session);
+                sprintf(session_buf, "Cookie: kbs-session-id=%s", session);
                 curl_slist_append(slist, session_buf);
         }
 

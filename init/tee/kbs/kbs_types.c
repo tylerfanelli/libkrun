@@ -22,7 +22,7 @@ static void kbs_attestation_marshal_tee_pubkey(char *, BIGNUM *, BIGNUM *);
  * KBS REQUEST.
  */
 int
-kbs_request_marshal(char *json_request, int tee, char *workload_id)
+kbs_request_marshal(char *json_request, int tee)
 {
         char *teestr;
 
@@ -37,8 +37,7 @@ kbs_request_marshal(char *json_request, int tee, char *workload_id)
          * Build the KBS REQUEST JSON string.
          */
         sprintf(json_request,
-        "{\"extra-params\":\"{\\\"workload_id\\\":\\\"%s\\\"}\",\"tee\":\"%s\",\"version\":\"0.0.0\"}",
-                workload_id,
+        "{\"extra-params\":\"{}\",\"tee\":\"%s\",\"version\":\"0.0.0\"}",
                 teestr);
 
         return 0;
@@ -240,12 +239,15 @@ kbs_attestation_marshal_tee_pubkey(char *json, BIGNUM *mod, BIGNUM *exp)
         sprintf(buf, "\"tee-pubkey\":{");
         strcat(json, buf);
 
+	sprintf(buf, "\"kty\":\"\",");
+	strcat(json, buf);
+
         sprintf(buf, "\"alg\":\"RSA\",");
         strcat(json, buf);
 
-        sprintf(buf, "\"k-mod\":\"%s\",", mod_b64);
+        sprintf(buf, "\"n\":\"%s\",", mod_b64);
         strcat(json, buf);
 
-        sprintf(buf, "\"k-exp\":\"%s\"},", exp_b64);
+        sprintf(buf, "\"e\":\"%s\"},", exp_b64);
         strcat(json, buf);
 }

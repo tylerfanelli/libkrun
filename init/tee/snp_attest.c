@@ -23,23 +23,28 @@
 #define NONCE_MAX       1024
 #define JSON_MAX        1024
 #define GEN_MAX         32
+#define HOST_DATA_MAX   32
 
 static int snp_get_report(const uint8_t *, size_t, struct snp_report *);
 static int SNP_ATTEST_ERR(char *);
 static void json_fmt(char *);
+static int b64_decode(char *, unsigned char **, size_t *);
+static int b64_decode_len(char *);
 
 int
-snp_attest(char *pass, char *url, char *wid, char *tee_data)
+snp_attest(char *pass, char *url, char *wid, char *tee_data, char *encoded)
 {
         CURL *curl;
         char nonce[NONCE_MAX], json[JSON_MAX], gen[GEN_MAX];
+        unsigned char host_data[HOST_DATA_MAX];
         struct snp_report report;
         EVP_PKEY *pkey;
         BIGNUM *n, *e;
         unsigned int hash_size;
         uint8_t *hash;
+        size_t host_data_size = HOST_DATA_MAX;
 
-        if (kbs_request_marshal(json, TEE_SNP, wid) < 0)
+        if (kbs_request_marshal(json, TEE_SNP) < 0)
                 return SNP_ATTEST_ERR("Unable to marshal KBS REQUEST");
 
         curl = curl_easy_init();
@@ -62,6 +67,12 @@ snp_attest(char *pass, char *url, char *wid, char *tee_data)
 
         if (snp_get_report(hash, hash_size, &report) != EXIT_SUCCESS)
                 return SNP_ATTEST_ERR("Unable to retrieve attestation report");
+
+        if (b64_decode(encoded, (unsigned char **) &host_data,
+                        &host_data_size) < 0)
+                return SNP_ATTEST_ERR("Unable to decode HOST_DATA string");
+
+        memcpy((void *) report.host_data, (void *) host_data, host_data_size);
 
         if (kbs_attest(curl, url, &report, n, e, gen) < 0)
                 return SNP_ATTEST_ERR("Unable to complete KBS ATTESTATION");
@@ -150,7 +161,7 @@ snp_get_report(const uint8_t *data, size_t data_sz, struct snp_report *report)
                 rc = errno;
                 perror("ioctl");
                 fprintf(stderr, "errno is %u\n", errno);
-                fprintf(stderr, "firmware error %#llx\n", guest_req.fw_err);
+                fprintf(stderr, "firmware error %x\n", guest_req.fw_error);
                 fprintf(stderr, "report error %x\n", report_resp->status);
 
                 goto out_close;
@@ -220,4 +231,58 @@ json_fmt(char *str)
         cpy[cpy_idx] = '\0';
 
         strcpy(str, cpy);
+}
+
+/*
+ * Safely decode a base64-encoded string.
+ */
+static int
+b64_decode(char *encoded, unsigned char **buf, size_t *len)
+{
+        BIO *bio, *b64;
+        int decode_len;
+
+        decode_len = b64_decode_len(encoded);
+        *buf = (unsigned char *) malloc(decode_len + 1);
+        (*buf)[decode_len] = '\0';
+
+        bio = BIO_new_mem_buf(encoded, -1);
+        b64 = BIO_new(BIO_f_base64());
+        bio = BIO_push(b64, bio);
+
+        BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+        *len = BIO_read(bio, *buf, strlen(encoded));
+
+        if (*len != decode_len)
+                return -1;
+
+        BIO_free_all(bio);
+
+        return 0;
+}
+
+/*
+ * Get the length of a base64 decoded string.
+ */
+static int
+b64_decode_len(char *encoded)
+{
+        size_t len, padding;
+        char last, next_last;
+
+        len = strlen(encoded);
+        padding = 0;
+
+        if (len < 2)
+                return -1;
+
+        last = encoded[len - 1];
+        next_last = encoded[len - 2];
+
+        if (last == '=' && next_last == '=')
+                padding = 2;
+        else if (last == '=')
+                padding = 1;
+
+        return ((len * 3) / 4) - padding;
 }

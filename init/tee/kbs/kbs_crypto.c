@@ -204,16 +204,22 @@ rsa_pkey_decrypt(EVP_PKEY *pkey, char *enc, char **plain_ptr)
 {
         int rc;
         EVP_PKEY_CTX *ctx;
-        char enc_bin[4096], *plain;
+        char ciphertext[4096], enc_bin[4096], *plain;
         size_t enc_bin_len, secret_plain_len = 4096;
 
         rc = -1;
+
+	if (json_parse_str(ciphertext, "ciphertext", enc) < 0) {
+		printf("Unable to find \"ciphertext\" label from response\n");
+
+		return rc;
+	}
 
         /*
          * Decode the hex-encoded string to its byte format.
          */
         if (OPENSSL_hexstr2buf_ex((unsigned char *) enc_bin, 4096, &enc_bin_len,
-                        enc, '\0') != 1) {
+                        ciphertext, '\0') != 1) {
 		printf("Error converting hex to buf\n");
 
 		return rc;

@@ -40,7 +40,7 @@ static int jsoneq(const char *, jsmntok_t *, const char *);
 
 #ifdef SEV
 static char *sev_get_luks_passphrase(int *);
-static char *snp_get_luks_passphrase(char *, char *, char *, int *);
+static char *snp_get_luks_passphrase(char *, char *, char *, char *, int *);
 #endif
 
 char DEFAULT_KRUN_INIT[] = "/bin/sh";
@@ -88,9 +88,11 @@ static char *
 get_luks_passphrase(int *pass_len)
 {
         int fd, ret, num_tokens, wid_found, url_found, tee_found, tee_data_found;
+        int host_data_found;
         uint64_t dev_size, tc_size;
         char wid[256], url[256], *tc_json, *tok_start, *tok_end;
         char footer[KRUN_FOOTER_LEN], tee[256], tee_data[256], *return_str;
+        char host_data[256];
         jsmn_parser parser;
         jsmntok_t *tokens;
         size_t tok_size;
@@ -195,7 +197,7 @@ get_luks_passphrase(int *pass_len)
                 goto free_mem;
         }
 
-        wid_found = url_found = tee_found = tee_data_found = 0;
+        wid_found = url_found = tee_found = tee_data_found = host_data_found = 0;
 
         for (int i = 1; i < num_tokens - 1; ++i) {
                 tok_start = tc_json + tokens[i + 1].start;
@@ -213,7 +215,10 @@ get_luks_passphrase(int *pass_len)
                 } else if (!jsoneq(tc_json, &tokens[i], "tee_data")) {
                         strncpy(tee_data, tok_start, tok_size);
                         tee_data_found = 1;
-                }
+                } else if (!jsoneq(tc_json, &tokens[i], "host_data")) {
+                        strncpy(host_data, tok_start, tok_size);
+			            host_data_found = 1;
+		        }
         }
 
         if (!wid_found) {
@@ -228,6 +233,9 @@ get_luks_passphrase(int *pass_len)
                 printf("Unable to find TEE generation server URL\n");
 
                 goto free_mem;
+        } else if (host_data_found == 0) {
+                printf("Unable to find HOST_DATA string\n");
+                goto free_mem;
         }
 
         if (strcmp(tee, "snp") == 0) {
@@ -236,7 +244,8 @@ get_luks_passphrase(int *pass_len)
                         goto free_mem;
                 }
 
-                return_str = snp_get_luks_passphrase(url, wid, tee_data, pass_len);
+                return_str = snp_get_luks_passphrase(url, wid, tee_data,
+							host_data, pass_len);
         } else if (strcmp(tee, "sev") == 0) {
                 return_str = sev_get_luks_passphrase(pass_len);
         }
@@ -258,7 +267,8 @@ finish:
 }
 
 static char *
-snp_get_luks_passphrase(char *url, char *wid, char *tee_data, int *pass_len)
+snp_get_luks_passphrase(char *url, char *wid, char *tee_data, char *host_data,
+			int *pass_len)
 {
         char *pass;
 
@@ -267,7 +277,7 @@ snp_get_luks_passphrase(char *url, char *wid, char *tee_data, int *pass_len)
                 return NULL;
         }
 
-        if (snp_attest(pass, url, wid, tee_data) == 0) {
+        if (snp_attest(pass, url, wid, tee_data, host_data) == 0) {
                 *pass_len = strlen(pass);
                 return pass;
         }
@@ -814,6 +824,7 @@ int main(int argc, char **argv)
 	char *config_workdir, *env_workdir;
 	char *rlimits;
 	char **config_argv, **exec_argv;
+
 
 #ifdef SEV
 	if (chroot_luks() < 0) {

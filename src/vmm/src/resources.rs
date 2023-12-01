@@ -61,6 +61,7 @@ pub struct TeeConfig {
     pub tee: Tee,
     pub tee_data: String,
     pub attestation_url: String,
+    pub host_data: String,
 }
 
 #[cfg(feature = "tee")]
@@ -72,6 +73,7 @@ impl Default for TeeConfig {
             tee: Tee::Sev,
             tee_data: "".to_string(),
             attestation_url: "".to_string(),
+            host_data: "".to_string(),
         }
     }
 }
