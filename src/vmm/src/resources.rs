@@ -56,7 +56,6 @@ pub enum Error {
 #[cfg(feature = "tee")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeeConfig {
-    pub workload_id: String,
     pub cpus: u8,
     pub ram_mib: usize,
     pub tee: Tee,
@@ -68,7 +67,6 @@ pub struct TeeConfig {
 impl Default for TeeConfig {
     fn default() -> Self {
         Self {
-            workload_id: "".to_string(),
             cpus: 0,
             ram_mib: 0,
             tee: Tee::Sev,

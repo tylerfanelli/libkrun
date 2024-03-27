@@ -230,21 +230,7 @@ fn get_and_store_chain(
     tee_config: &TeeConfig,
     curl_agent: &mut CurlAgent,
 ) -> Result<certs::sev::Chain, Error> {
-    let cert_config: SevCertConfig =
-        serde_json::from_str(&tee_config.tee_data).map_err(Error::ParseSevCertConfig)?;
-
-    if !cert_config.vendor_chain.is_empty() {
-        let filepath = Path::new(&cert_config.vendor_chain);
-        let mut file = File::open(filepath).map_err(Error::OpenChainFile)?;
-        Ok(certs::sev::Chain::decode(&mut file, ()).map_err(|_| Error::DecodeChain)?)
-    } else {
-        let chain = fetch_chain(fw, curl_agent)?;
-        let mut file = File::create("/tmp/libkrun-sev.chain").map_err(|_| Error::OpenTmpFile)?;
-        chain
-            .encode(&mut file, ())
-            .map_err(|_| Error::EncodeChain)?;
-        Ok(chain)
-    }
+    unimplemented!();
 }
 
 /// Payload sent to the attestation server on session request.
@@ -271,63 +257,7 @@ pub struct AmdSev {
 
 impl AmdSev {
     pub fn new(tee_config: &TeeConfig) -> Result<Self, Error> {
-        let mut fw = Firmware::open().map_err(Error::OpenFirmware)?;
-        let mut curl_agent = CurlAgent::new();
-        let chain = get_and_store_chain(&mut fw, tee_config, &mut curl_agent)?;
-        let mut sev_es = false;
-
-        let start = if !tee_config.attestation_url.is_empty() {
-            let build = fw
-                .platform_status()
-                .map_err(|_| Error::PlatformStatus)?
-                .build;
-
-            let sev_request = SevRequest {
-                build,
-                chain,
-                workload_id: tee_config.workload_id.clone(),
-            };
-            let request = Request {
-                version: "0.0.0".to_string(),
-                tee: tee_config.tee,
-                extra_params: serde_json::json!(sev_request).to_string(),
-            };
-
-            let response = curl_agent
-                .post(
-                    format!("{}/kbs/v0/auth", tee_config.attestation_url).as_str(),
-                    serde_json::json!(request).to_string().as_bytes(),
-                )
-                .map_err(Error::SessionRequest)?;
-
-            let challenge: Challenge =
-                serde_json::from_slice(&response).map_err(Error::ParseSessionResponse)?;
-            let sev_challenge: SevChallenge = serde_json::from_str(&challenge.extra_params)
-                .map_err(Error::ParseSessionResponse)?;
-
-            if sev_challenge
-                .start
-                .policy
-                .flags
-                .contains(PolicyFlags::ENCRYPTED_STATE)
-            {
-                sev_es = true;
-            }
-
-            sev_challenge.start
-        } else {
-            let policy = Policy::default();
-            let session = Session::try_from(policy).map_err(Error::SessionFromPolicy)?;
-            session.start(chain).map_err(Error::StartFromSession)?
-        };
-
-        Ok(AmdSev {
-            tee_config: tee_config.clone(),
-            fw,
-            start,
-            sev_es,
-            curl_agent: Arc::new(Mutex::new(curl_agent)),
-        })
+        unimplemented!();
     }
 
     fn sev_launch_update_data(
@@ -395,60 +325,6 @@ impl AmdSev {
         measured_regions: Vec<MeasuredRegion>,
         mut launcher: Launcher<Started, RawFd, RawFd>,
     ) -> Result<(), Error> {
-        for region in measured_regions {
-            self.sev_launch_update_data(vm_fd, region.host_addr, region.size)
-                .map_err(Error::SevLaunchUpdateData)?;
-        }
-
-        if self.sev_es {
-            launcher.update_vmsa().unwrap()
-        }
-
-        let mut launcher = launcher.measure().unwrap();
-        let measurement = launcher.measurement();
-
-        if !self.tee_config.attestation_url.is_empty() {
-            let tee_pubkey = TeePubKey {
-                kty: "".to_string(),
-                alg: "".to_string(),
-                k_mod: "".to_string(),
-                k_exp: "".to_string(),
-            };
-
-            let attestation = Attestation {
-                tee_pubkey,
-                tee_evidence: serde_json::json!(measurement).to_string(),
-            };
-
-            let mut curl_agent = self.curl_agent.lock().unwrap();
-            curl_agent
-                .post(
-                    &format!("{}/kbs/v0/attest", self.tee_config.attestation_url,),
-                    serde_json::json!(attestation).to_string().as_bytes(),
-                )
-                .map_err(Error::AttestationRequest)?;
-
-            let secret_resp = curl_agent
-                .get(&format!(
-                    "{}/kbs/v0/key/{}",
-                    self.tee_config.attestation_url, self.tee_config.workload_id,
-                ))
-                .map_err(Error::AttestationRequest)?;
-
-            let secret: Secret =
-                serde_json::from_slice(&secret_resp).map_err(Error::ParseAttestationSecret)?;
-
-            let secret_host_addr = guest_mem
-                .get_host_address(GuestAddress(arch::x86_64::layout::CMDLINE_START))
-                .unwrap() as u64;
-
-            launcher
-                .inject(&secret, secret_host_addr.try_into().unwrap())
-                .unwrap();
-        }
-
-        let _handle = launcher.finish();
-
-        Ok(())
+        unimplemented!();
     }
 }
