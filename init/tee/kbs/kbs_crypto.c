@@ -204,7 +204,7 @@ rsa_pkey_decrypt(EVP_PKEY *pkey, char *enc, char **plain_ptr)
 {
         int rc;
         EVP_PKEY_CTX *ctx;
-        char ciphertext[4096], enc_bin[4096], *plain;
+        char ciphertext[4096], enc_bin[8192], *plain;
         size_t enc_bin_len, secret_plain_len = 4096;
 
         rc = -1;
@@ -218,7 +218,7 @@ rsa_pkey_decrypt(EVP_PKEY *pkey, char *enc, char **plain_ptr)
         /*
          * Decode the hex-encoded string to its byte format.
          */
-        if (OPENSSL_hexstr2buf_ex((unsigned char *) enc_bin, 4096, &enc_bin_len,
+        if (OPENSSL_hexstr2buf_ex((unsigned char *) enc_bin, 8192, &enc_bin_len,
                         ciphertext, '\0') != 1) {
 		printf("Error converting hex to buf\n");
 
