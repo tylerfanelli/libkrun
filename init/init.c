@@ -40,7 +40,7 @@ static int jsoneq(const char *, jsmntok_t *, const char *);
 
 #ifdef SEV
 static char *sev_get_luks_passphrase(int *);
-static char *snp_get_luks_passphrase(char *, char *, char *, char *, int *);
+static char *snp_get_luks_passphrase(char *, char *, char *, int *);
 #endif
 
 char DEFAULT_KRUN_INIT[] = "/bin/sh";
@@ -87,10 +87,10 @@ static void set_rlimits(const char *rlimits)
 static char *
 get_luks_passphrase(int *pass_len)
 {
-        int fd, ret, num_tokens, wid_found, url_found, tee_found, tee_data_found;
+        int fd, ret, num_tokens, url_found, tee_found, tee_data_found;
         int host_data_found;
         uint64_t dev_size, tc_size;
-        char wid[256], url[256], *tc_json, *tok_start, *tok_end;
+        char url[256], *tc_json, *tok_start, *tok_end;
         char footer[KRUN_FOOTER_LEN], tee[256], tee_data[256], *return_str;
         char host_data[256];
         jsmn_parser parser;
@@ -174,7 +174,7 @@ get_luks_passphrase(int *pass_len)
         tc_json[tc_size] = '\0';
 
         /*
-         * Parse the TEE config's workload_id and attestation_url field.
+         * Parse the TEE config's attestation data.
          */
         jsmn_init(&parser);
 
@@ -197,16 +197,13 @@ get_luks_passphrase(int *pass_len)
                 goto free_mem;
         }
 
-        wid_found = url_found = tee_found = tee_data_found = host_data_found = 0;
+        url_found = tee_found = tee_data_found = host_data_found = 0;
 
         for (int i = 1; i < num_tokens - 1; ++i) {
                 tok_start = tc_json + tokens[i + 1].start;
                 tok_end = tc_json + tokens[i + 1].end;
                 tok_size = tok_end - tok_start;
-                if (!jsoneq(tc_json, &tokens[i], "workload_id")) {
-                        strncpy(wid, tok_start, tok_size);
-                        wid_found = 1;
-                } else if (!jsoneq(tc_json, &tokens[i], "attestation_url")) {
+                if (!jsoneq(tc_json, &tokens[i], "attestation_url")) {
                         strncpy(url, tok_start, tok_size);
                         url_found = 1;
                 } else if (!jsoneq(tc_json, &tokens[i], "tee")) {
@@ -221,11 +218,7 @@ get_luks_passphrase(int *pass_len)
 		        }
         }
 
-        if (!wid_found) {
-                printf("Unable to find attestation workload ID\n");
-
-                goto free_mem;
-        } else if (!url_found) {
+        if (!url_found) {
                 printf("Unable to find attestation server URL\n");
 
                 goto free_mem;
@@ -244,8 +237,8 @@ get_luks_passphrase(int *pass_len)
                         goto free_mem;
                 }
 
-                return_str = snp_get_luks_passphrase(url, wid, tee_data,
-							host_data, pass_len);
+                return_str = snp_get_luks_passphrase(url, tee_data, host_data,
+							pass_len);
         } else if (strcmp(tee, "sev") == 0) {
                 return_str = sev_get_luks_passphrase(pass_len);
         }
@@ -267,7 +260,7 @@ finish:
 }
 
 static char *
-snp_get_luks_passphrase(char *url, char *wid, char *tee_data, char *host_data,
+snp_get_luks_passphrase(char *url, char *tee_data, char *host_data,
 			int *pass_len)
 {
         char *pass;
@@ -277,7 +270,7 @@ snp_get_luks_passphrase(char *url, char *wid, char *tee_data, char *host_data,
                 return NULL;
         }
 
-        if (snp_attest(pass, url, wid, tee_data, host_data) == 0) {
+        if (snp_attest(pass, url, tee_data, host_data) == 0) {
                 *pass_len = strlen(pass);
                 return pass;
         }

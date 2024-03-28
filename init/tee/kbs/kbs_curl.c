@@ -130,7 +130,7 @@ kbs_curl_post(CURL *curl, char *url, char *in, char *out, int type)
  * from the KBS attestation server.
  */
 int
-kbs_curl_get(CURL *curl, char *url, char *wid, char *out, int type)
+kbs_curl_get(CURL *curl, char *url, char *out, int type)
 {
         CURLcode code;
         char full_url[100], *session_id_label, session_id[100];

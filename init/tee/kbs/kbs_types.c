@@ -150,7 +150,7 @@ out:
  * Retrieve the secret from the KBS attestation server.
  */
 int
-kbs_get_key(CURL *curl, char *url, char *wid, EVP_PKEY *pkey, char *pass)
+kbs_get_key(CURL *curl, char *url, EVP_PKEY *pkey, char *pass)
 {
         int end_idx;
         char json[4096];
@@ -160,7 +160,7 @@ kbs_get_key(CURL *curl, char *url, char *wid, EVP_PKEY *pkey, char *pass)
          * The key is represented as a JSON byte list, copy this JSON list
          * string to "json".
          */
-        if (kbs_curl_get(curl, url, wid, json, KBS_CURL_GET_KEY) < 0) {
+        if (kbs_curl_get(curl, url, json, KBS_CURL_GET_KEY) < 0) {
                 printf("ERROR: could not complete KBS passphrase retrieval\n");
 
                 return -1;

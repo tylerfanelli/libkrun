@@ -32,7 +32,7 @@ static int b64_decode(char *, unsigned char **, size_t *);
 static int b64_decode_len(char *);
 
 int
-snp_attest(char *pass, char *url, char *wid, char *tee_data, char *encoded)
+snp_attest(char *pass, char *url, char *tee_data, char *encoded)
 {
         CURL *curl;
         char nonce[NONCE_MAX], json[JSON_MAX], gen[GEN_MAX];
@@ -79,7 +79,7 @@ snp_attest(char *pass, char *url, char *wid, char *tee_data, char *encoded)
 
         curl_easy_reset(curl);
 
-        if (kbs_get_key(curl, url, wid, pkey, pass) < 0)
+        if (kbs_get_key(curl, url, pkey, pass) < 0)
                 return SNP_ATTEST_ERR("Unable to retrieve passphrase");
 
         return 0;

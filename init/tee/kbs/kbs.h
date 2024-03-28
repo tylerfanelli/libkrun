@@ -38,11 +38,11 @@ int json_parse_str(char *, char *, char *);
 int kbs_request_marshal(char *, int);
 int kbs_challenge(CURL *, char *, char *, char *);
 int kbs_attest(CURL *, char *, struct snp_report *, BIGNUM *, BIGNUM *, char *);
-int kbs_get_key(CURL *, char *, char *, EVP_PKEY *, char *);
+int kbs_get_key(CURL *, char *, EVP_PKEY *, char *);
 
 // kbs_curl.c
 int kbs_curl_post(CURL *, char *, char *, char *, int);
-int kbs_curl_get(CURL *, char *, char *, char *, int);
+int kbs_curl_get(CURL *, char *, char *, int);
 
 // kbs_crypto.c
 int kbs_tee_pubkey_create(EVP_PKEY **, BIGNUM **, BIGNUM **);
