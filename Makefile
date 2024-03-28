@@ -25,7 +25,6 @@ ifeq ($(SEV),1)
     INIT_DEFS += -DSEV=1
     INIT_DEFS += $(KBS_LD_FLAGS)
     INIT_SRC += $(SNP_INIT_SRC)
-	BUILD_INIT = 0
 endif
 ifeq ($(NET),1)
     FEATURE_FLAGS += --features net
