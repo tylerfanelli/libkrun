@@ -15,7 +15,6 @@
 
 #include <curl/curl.h>
 #include <openssl/evp.h>
-#include <openssl/bn.h>
 
 #include "snp_attest.h"
 #include "kbs/kbs.h"
@@ -29,14 +28,13 @@ static int snp_get_report(const uint8_t *, size_t, struct snp_report *);
 static int SNP_ATTEST_ERR(char *);
 static void json_fmt(char *);
 static int b64_decode(char *, unsigned char **, size_t *);
-static int b64_decode_len(char *);
 
 int
 snp_attest(char *pass, char *url, char *tee_data, char *encoded)
 {
         CURL *curl;
         char nonce[NONCE_MAX], json[JSON_MAX], gen[GEN_MAX];
-        unsigned char host_data[HOST_DATA_MAX];
+        unsigned char *host_data;
         struct snp_report report;
         EVP_PKEY *pkey;
         BIGNUM *n, *e;
@@ -68,11 +66,10 @@ snp_attest(char *pass, char *url, char *tee_data, char *encoded)
         if (snp_get_report(hash, hash_size, &report) != EXIT_SUCCESS)
                 return SNP_ATTEST_ERR("Unable to retrieve attestation report");
 
-        if (b64_decode(encoded, (unsigned char **) &host_data,
-                        &host_data_size) < 0)
+        if (b64_decode(encoded, &host_data, &host_data_size) < 0)
                 return SNP_ATTEST_ERR("Unable to decode HOST_DATA string");
 
-        memcpy((void *) report.host_data, (void *) host_data, host_data_size);
+        memcpy((void *) report.host_data, (void *) host_data, HOST_DATA_MAX);
 
         if (kbs_attest(curl, url, &report, n, e, gen) < 0)
                 return SNP_ATTEST_ERR("Unable to complete KBS ATTESTATION");
@@ -239,50 +236,19 @@ json_fmt(char *str)
 static int
 b64_decode(char *encoded, unsigned char **buf, size_t *len)
 {
-        BIO *bio, *b64;
-        int decode_len;
+	int elen;
+	size_t alloc;
 
-        decode_len = b64_decode_len(encoded);
-        *buf = (unsigned char *) malloc(decode_len + 1);
-        (*buf)[decode_len] = '\0';
+	elen = strlen(encoded);
+	alloc = 3 * elen / 4;
+	*buf = (unsigned char *) malloc(alloc);
+	if (*buf == NULL)
+		return -1;
 
-        bio = BIO_new_mem_buf(encoded, -1);
-        b64 = BIO_new(BIO_f_base64());
-        bio = BIO_push(b64, bio);
+	*len = EVP_DecodeBlock(*buf, (unsigned char *) encoded, elen);
 
-        BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
-        *len = BIO_read(bio, *buf, strlen(encoded));
-
-        if (*len != decode_len)
-                return -1;
-
-        BIO_free_all(bio);
+	if (*len != alloc)
+		return -1;
 
         return 0;
-}
-
-/*
- * Get the length of a base64 decoded string.
- */
-static int
-b64_decode_len(char *encoded)
-{
-        size_t len, padding;
-        char last, next_last;
-
-        len = strlen(encoded);
-        padding = 0;
-
-        if (len < 2)
-                return -1;
-
-        last = encoded[len - 1];
-        next_last = encoded[len - 2];
-
-        if (last == '=' && next_last == '=')
-                padding = 2;
-        else if (last == '=')
-                padding = 1;
-
-        return ((len * 3) / 4) - padding;
 }
