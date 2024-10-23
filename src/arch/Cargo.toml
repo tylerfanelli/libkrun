@@ -11,7 +11,7 @@ efi = []
 
 [dependencies]
 libc = ">=0.2.39"
-vm-memory = { version = ">=0.13", features = ["backend-mmap"] }
+vm-memory = { git = "https://github.com/tylerfanelli/vm-memory.git", branch = "volatile_slice_deref", features = ["backend-mmap"] }
 
 arch_gen = { path = "../arch_gen" }
 smbios = { path = "../smbios" }
