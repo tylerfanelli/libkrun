@@ -19,8 +19,8 @@ use std::sync::atomic::{AtomicI32, Ordering};
 #[cfg(not(feature = "efi"))]
 use std::sync::LazyLock;
 use std::sync::Mutex;
+use std::thread;
 
-#[cfg(target_os = "macos")]
 use crossbeam_channel::unbounded;
 #[cfg(feature = "blk")]
 use devices::virtio::block::ImageType;
@@ -53,6 +53,9 @@ use vmm::vmm_config::machine_config::VmConfig;
 #[cfg(feature = "net")]
 use vmm::vmm_config::net::NetworkInterfaceConfig;
 use vmm::vmm_config::vsock::VsockDeviceConfig;
+
+#[cfg(target_os = "linux")]
+use kvm_bindings::kvm_memory_attributes;
 
 // Value returned on success. We use libc's errors otherwise.
 const KRUN_SUCCESS: i32 = 0;
@@ -1404,12 +1407,17 @@ pub extern "C" fn krun_start_enter(ctx_id: u32) -> i32 {
     #[cfg(target_os = "macos")]
     let (sender, receiver) = unbounded();
 
-    let _vmm = match vmm::builder::build_microvm(
+    #[cfg(target_os = "linux")]
+    let (pmem_sender, pmem_receiver) = unbounded();
+
+    let vmm = match vmm::builder::build_microvm(
         &ctx_cfg.vmr,
         &mut event_manager,
         ctx_cfg.shutdown_efd,
         #[cfg(target_os = "macos")]
         sender,
+        #[cfg(target_os = "linux")]
+        pmem_sender,
     ) {
         Ok(vmm) => vmm,
         Err(e) => {
@@ -1418,8 +1426,29 @@ pub extern "C" fn krun_start_enter(ctx_id: u32) -> i32 {
         }
     };
 
-    #[cfg(target_os = "macos")]
-    let mapper_vmm = _vmm.clone();
+    let mapper_vmm = vmm.clone();
+
+    #[cfg(target_os = "linux")]
+    let vm_fd = mapper_vmm.lock().unwrap().kvm_vm().fd().clone();
+
+    #[cfg(target_os = "linux")]
+    thread::spawn(move || loop {
+        match pmem_receiver.recv() {
+            Err(e) => error!("Error in private memory receiver: {:?}", e),
+            Ok(m) => {
+                vm_fd
+                    .lock()
+                    .unwrap()
+                    .set_memory_attributes(kvm_memory_attributes {
+                        address: m.gpa,
+                        size: m.size,
+                        attributes: m.attributes as u64,
+                        flags: 0,
+                    })
+                    .unwrap();
+            }
+        }
+    });
 
     #[cfg(target_os = "macos")]
     std::thread::Builder::new()

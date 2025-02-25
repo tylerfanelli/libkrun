@@ -804,12 +804,14 @@ dependencies = [
  "devices",
  "env_logger",
  "hvf",
+ "kvm-bindings",
  "libc",
  "libloading",
  "log",
  "once_cell",
  "polly",
  "utils",
+ "vm-memory",
  "vmm",
 ]
 
