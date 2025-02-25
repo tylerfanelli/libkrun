@@ -760,11 +760,13 @@ dependencies = [
  "devices",
  "env_logger",
  "hvf",
+ "kvm-bindings",
  "libc",
  "log",
  "once_cell",
  "polly",
  "utils",
+ "vm-memory",
  "vmm",
 ]
 

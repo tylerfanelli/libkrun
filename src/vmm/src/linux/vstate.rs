@@ -40,11 +40,11 @@ use kvm_bindings::{
     kvm_clock_data, kvm_debugregs, kvm_irqchip, kvm_lapic_state, kvm_mp_state, kvm_pit_config,
     kvm_pit_state2, kvm_regs, kvm_sregs, kvm_vcpu_events, kvm_xcrs, kvm_xsave, CpuId, MsrList,
     Msrs, KVM_CLOCK_TSC_STABLE, KVM_IRQCHIP_IOAPIC, KVM_IRQCHIP_PIC_MASTER, KVM_IRQCHIP_PIC_SLAVE,
-    KVM_MAX_CPUID_ENTRIES, KVM_PIT_SPEAKER_DUMMY,
+    KVM_MAX_CPUID_ENTRIES, KVM_MEMORY_EXIT_FLAG_PRIVATE, KVM_PIT_SPEAKER_DUMMY,
 };
 use kvm_bindings::{
     kvm_create_guest_memfd, kvm_memory_attributes, kvm_userspace_memory_region2, KVM_API_VERSION,
-    KVM_MEM_GUEST_MEMFD,
+    KVM_MEMORY_ATTRIBUTE_PRIVATE, KVM_MEM_GUEST_MEMFD,
 };
 use kvm_ioctls::*;
 use utils::eventfd::EventFd;
@@ -428,6 +428,12 @@ impl KvmContext {
     }
 }
 
+pub struct MemProperties {
+    pub gpa: u64,
+    pub size: u64,
+    pub attributes: u32,
+}
+
 /// A wrapper around creating and using a VM.
 pub struct Vm {
     fd: Arc<Mutex<VmFd>>,
@@ -807,6 +813,9 @@ pub struct Vcpu {
     response_receiver: Option<Receiver<VcpuResponse>>,
     // The transmitting end of the responses channel owned by the vcpu side.
     response_sender: Sender<VcpuResponse>,
+
+    // The transmitting end of the private memory converter channel.
+    pmem_sender: Sender<MemProperties>,
 }
 
 impl Vcpu {
@@ -910,6 +919,7 @@ impl Vcpu {
         msr_list: MsrList,
         io_bus: devices::Bus,
         exit_evt: EventFd,
+        pmem_sender: Sender<MemProperties>,
     ) -> Result<Self> {
         let kvm_vcpu = vm_fd
             .lock()
@@ -932,6 +942,7 @@ impl Vcpu {
             event_sender: Some(event_sender),
             response_receiver: Some(response_receiver),
             response_sender,
+            pmem_sender,
         })
     }
 
@@ -1254,6 +1265,25 @@ impl Vcpu {
                 VcpuExit::InternalError => {
                     error!("Received KVM_EXIT_INTERNAL_ERROR signal");
                     Err(Error::VcpuUnhandledKvmExit)
+                }
+                VcpuExit::MemoryFault { flags, gpa, size } => {
+                    if (flags & !(KVM_MEMORY_EXIT_FLAG_PRIVATE as u64)) != 0 {
+                        return Err(Error::VcpuUnhandledKvmExit);
+                    }
+
+                    let attributes = if (flags & (KVM_MEMORY_EXIT_FLAG_PRIVATE as u64)) != 0 {
+                        KVM_MEMORY_ATTRIBUTE_PRIVATE
+                    } else {
+                        0
+                    };
+
+                    let _ = self.pmem_sender.try_send(MemProperties {
+                        gpa,
+                        size,
+                        attributes,
+                    });
+
+                    Ok(VcpuEmulation::Handled)
                 }
                 r => {
                     // TODO: Are we sure we want to finish running a vcpu upon

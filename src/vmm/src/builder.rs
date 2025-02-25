@@ -3,8 +3,12 @@
 
 //! Enables pre-boot setup, instantiation and booting of a Firecracker VMM.
 
+#[cfg(target_os = "linux")]
+use crate::vstate::MemProperties;
+
 #[cfg(target_os = "macos")]
-use crossbeam_channel::{unbounded, Sender};
+use crossbeam_channel::unbounded;
+use crossbeam_channel::Sender;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io;
@@ -354,6 +358,7 @@ pub fn build_microvm(
     event_manager: &mut EventManager,
     _shutdown_efd: Option<EventFd>,
     #[cfg(target_os = "macos")] _map_sender: Sender<MemoryMapping>,
+    #[cfg(target_os = "linux")] pmem_sender: Sender<MemProperties>,
 ) -> std::result::Result<Arc<Mutex<Vmm>>, StartMicrovmError> {
     #[cfg(not(feature = "efi"))]
     let kernel_bundle = vm_resources
@@ -547,6 +552,7 @@ pub fn build_microvm(
             boot_ip,
             &pio_device_manager.io_bus,
             &exit_evt,
+            pmem_sender,
         )
         .map_err(StartMicrovmError::Internal)?;
     }
@@ -1063,8 +1069,10 @@ fn create_vcpus_x86_64(
     entry_addr: GuestAddress,
     io_bus: &devices::Bus,
     exit_evt: &EventFd,
+    #[cfg(target_os = "linux")] pmem_sender: Sender<MemProperties>,
 ) -> super::Result<Vec<Vcpu>> {
     let mut vcpus = Vec::with_capacity(vcpu_config.vcpu_count as usize);
+
     for cpu_index in 0..vcpu_config.vcpu_count {
         let mut vcpu = Vcpu::new_x86_64(
             cpu_index,
@@ -1073,6 +1081,8 @@ fn create_vcpus_x86_64(
             vm.supported_msrs().clone(),
             io_bus.clone(),
             exit_evt.try_clone().map_err(Error::EventFd)?,
+            #[cfg(target_os = "linux")]
+            pmem_sender.clone(),
         )
         .map_err(Error::Vcpu)?;
 
