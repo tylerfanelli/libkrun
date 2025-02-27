@@ -17,7 +17,7 @@ use std::os::unix::io::RawFd;
 use std::result;
 use std::sync::atomic::{fence, Ordering};
 #[cfg(not(test))]
-use std::sync::Barrier;
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 
 use super::super::{FC_EXIT_CODE_GENERIC_ERROR, FC_EXIT_CODE_OK};
@@ -430,7 +430,7 @@ impl KvmContext {
 
 /// A wrapper around creating and using a VM.
 pub struct Vm {
-    fd: VmFd,
+    fd: Arc<Mutex<VmFd>>,
     next_mem_slot: u32,
 
     // X86 specific fields.
@@ -467,7 +467,7 @@ impl Vm {
             arch::x86_64::msr::supported_guest_msrs(kvm).map_err(Error::GuestMSRs)?;
 
         Ok(Vm {
-            fd: vm_fd,
+            fd: Arc::new(Mutex::new(vm_fd)),
             next_mem_slot: 0,
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             supported_cpuid,
@@ -498,7 +498,7 @@ impl Vm {
         };
 
         Ok(Vm {
-            fd: vm_fd,
+            fd: Arc::new(Mutex::new(vm_fd)),
             next_mem_slot: 0,
             supported_cpuid,
             supported_msrs,
@@ -535,6 +535,8 @@ impl Vm {
 
             let guest_memfd = self
                 .fd
+                .lock()
+                .unwrap()
                 .create_guest_memfd(kvm_create_guest_memfd {
                     size: region.size() as u64,
                     flags: 0,
@@ -558,6 +560,8 @@ impl Vm {
             // are not overlapping.
             unsafe {
                 self.fd
+                    .lock()
+                    .unwrap()
                     .set_user_memory_region2(memory_region)
                     .map_err(Error::SetUserMemoryRegion2)?;
             };
@@ -570,6 +574,8 @@ impl Vm {
             };
 
             self.fd
+                .lock()
+                .unwrap()
                 .set_memory_attributes(attr)
                 .map_err(Error::SetMemoryAttributes)?;
 
@@ -578,6 +584,8 @@ impl Vm {
 
         #[cfg(target_arch = "x86_64")]
         self.fd
+            .lock()
+            .unwrap()
             .set_tss_address(arch::x86_64::layout::KVM_TSS_ADDRESS as usize)
             .map_err(Error::VmSetup)?;
 
@@ -591,7 +599,7 @@ impl Vm {
     ) -> Result<snp::Launcher<snp::Started, RawFd, RawFd>> {
         match &self.tee {
             Some(s) => s
-                .vm_prepare(&self.fd, guest_mem)
+                .vm_prepare(&self.fd.lock().unwrap(), guest_mem)
                 .map_err(Error::SnpSecVirtPrepare),
             None => Err(Error::InvalidTee),
         }
@@ -616,14 +624,22 @@ impl Vm {
     /// Creates the irq chip and an in-kernel device model for the PIT.
     #[cfg(target_arch = "x86_64")]
     pub fn setup_irqchip(&self) -> Result<()> {
-        self.fd.create_irq_chip().map_err(Error::VmSetup)?;
+        self.fd
+            .lock()
+            .unwrap()
+            .create_irq_chip()
+            .map_err(Error::VmSetup)?;
         let pit_config = kvm_pit_config {
             // We need to enable the emulation of a dummy speaker port stub so that writing to port
             // 0x61 (i.e. KVM_SPEAKER_BASE_ADDRESS) does not trigger an exit to user space.
             flags: KVM_PIT_SPEAKER_DUMMY,
             ..Default::default()
         };
-        self.fd.create_pit2(pit_config).map_err(Error::VmSetup)
+        self.fd
+            .lock()
+            .unwrap()
+            .create_pit2(pit_config)
+            .map_err(Error::VmSetup)
     }
 
     /// Creates the GIC (Global Interrupt Controller).
@@ -643,7 +659,7 @@ impl Vm {
     }
 
     /// Gets a reference to the kvm file descriptor owned by this VM.
-    pub fn fd(&self) -> &VmFd {
+    pub fn fd(&self) -> &Arc<Mutex<VmFd>> {
         &self.fd
     }
 
@@ -651,9 +667,19 @@ impl Vm {
     #[cfg(target_arch = "x86_64")]
     /// Saves and returns the Kvm Vm state.
     pub fn save_state(&self) -> Result<VmState> {
-        let pitstate = self.fd.get_pit2().map_err(Error::VmGetPit2)?;
+        let pitstate = self
+            .fd
+            .lock()
+            .unwrap()
+            .get_pit2()
+            .map_err(Error::VmGetPit2)?;
 
-        let mut clock = self.fd.get_clock().map_err(Error::VmGetClock)?;
+        let mut clock = self
+            .fd
+            .lock()
+            .unwrap()
+            .get_clock()
+            .map_err(Error::VmGetClock)?;
         // This bit is not accepted in SET_CLOCK, clear it.
         clock.flags &= !KVM_CLOCK_TSC_STABLE;
 
@@ -662,6 +688,8 @@ impl Vm {
             ..Default::default()
         };
         self.fd
+            .lock()
+            .unwrap()
             .get_irqchip(&mut pic_master)
             .map_err(Error::VmGetIrqChip)?;
 
@@ -670,6 +698,8 @@ impl Vm {
             ..Default::default()
         };
         self.fd
+            .lock()
+            .unwrap()
             .get_irqchip(&mut pic_slave)
             .map_err(Error::VmGetIrqChip)?;
 
@@ -678,6 +708,8 @@ impl Vm {
             ..Default::default()
         };
         self.fd
+            .lock()
+            .unwrap()
             .get_irqchip(&mut ioapic)
             .map_err(Error::VmGetIrqChip)?;
 
@@ -695,16 +727,28 @@ impl Vm {
     /// Restores the Kvm Vm state.
     pub fn restore_state(&self, state: &VmState) -> Result<()> {
         self.fd
+            .lock()
+            .unwrap()
             .set_pit2(&state.pitstate)
             .map_err(Error::VmSetPit2)?;
-        self.fd.set_clock(&state.clock).map_err(Error::VmSetClock)?;
         self.fd
+            .lock()
+            .unwrap()
+            .set_clock(&state.clock)
+            .map_err(Error::VmSetClock)?;
+        self.fd
+            .lock()
+            .unwrap()
             .set_irqchip(&state.pic_master)
             .map_err(Error::VmSetIrqChip)?;
         self.fd
+            .lock()
+            .unwrap()
             .set_irqchip(&state.pic_slave)
             .map_err(Error::VmSetIrqChip)?;
         self.fd
+            .lock()
+            .unwrap()
             .set_irqchip(&state.ioapic)
             .map_err(Error::VmSetIrqChip)?;
         Ok(())
@@ -861,13 +905,17 @@ impl Vcpu {
     #[cfg(target_arch = "x86_64")]
     pub fn new_x86_64(
         id: u8,
-        vm_fd: &VmFd,
+        vm_fd: &Arc<Mutex<VmFd>>,
         cpuid: CpuId,
         msr_list: MsrList,
         io_bus: devices::Bus,
         exit_evt: EventFd,
     ) -> Result<Self> {
-        let kvm_vcpu = vm_fd.create_vcpu(id as u64).map_err(Error::VcpuFd)?;
+        let kvm_vcpu = vm_fd
+            .lock()
+            .unwrap()
+            .create_vcpu(id as u64)
+            .map_err(Error::VcpuFd)?;
         let (event_sender, event_receiver) = unbounded();
         let (response_sender, response_receiver) = unbounded();
 

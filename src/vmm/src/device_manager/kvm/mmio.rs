@@ -94,11 +94,13 @@ impl MMIODeviceManager {
     /// Register an already created MMIO device to be used via MMIO transport.
     pub fn register_mmio_device(
         &mut self,
-        vm: &VmFd,
+        vm: &Arc<Mutex<VmFd>>,
         mmio_device: devices::virtio::MmioTransport,
         type_id: u32,
         device_id: String,
     ) -> Result<(u64, u32)> {
+        let vm = vm.lock().unwrap();
+
         if self.irq > self.last_irq {
             return Err(Error::IrqsExhausted);
         }

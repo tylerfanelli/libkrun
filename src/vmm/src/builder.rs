@@ -978,6 +978,8 @@ fn attach_legacy_devices(
     macro_rules! register_irqfd_evt {
         ($evt: ident, $index: expr) => {{
             vm.fd()
+                .lock()
+                .unwrap()
                 .register_irqfd(&pio_device_manager.$evt, $index)
                 .map_err(|e| {
                     Error::LegacyIOBus(device_manager::legacy::Error::EventFd(
