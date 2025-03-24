@@ -588,7 +588,7 @@ pub fn build_microvm(
 
     // On x86_64 always create a serial device,
     // while on aarch64 only create it if 'console=' is specified in the boot args.
-    let serial_device = if cfg!(feature = "efi") {
+    let _serial_device = if cfg!(feature = "efi") {
         Some(setup_serial_device(
             event_manager,
             None,
@@ -599,6 +599,12 @@ pub fn build_microvm(
     } else {
         None
     };
+
+    let serial_device = Some(setup_serial_device(
+        event_manager,
+        None,
+        Some(Box::new(io::stdout())),
+    )?);
 
     let exit_evt = EventFd::new(utils::eventfd::EFD_NONBLOCK)
         .map_err(Error::EventFd)
@@ -1663,7 +1669,7 @@ fn attach_console_devices(
     // The device mutex mustn't be locked here otherwise it will deadlock.
     attach_mmio_device(
         vmm,
-        "hvc0".to_string(),
+        "ttyS0".to_string(),
         MmioTransport::new(vmm.guest_memory().clone(), console),
     )
     .map_err(RegisterFsDevice)?;
