@@ -1,0 +1,12 @@
+[package]
+name = "libkrun-nitro"
+authors = ["Tyler Fanelli <tfanelli@redhat.com>"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+once_cell = "1.21.3"
+
+[lib]
+name = "krun"
+crate-type = ["cdylib"]

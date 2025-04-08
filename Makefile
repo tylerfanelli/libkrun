@@ -47,7 +47,11 @@ ifeq ($(EFI),1)
 	FEATURE_FLAGS := --features efi,gpu
 	BUILD_INIT = 0
 endif
-
+ifeq ($(NITRO), 1)
+    LIBRARY_HEADER = nitro/include/libkrun.h
+    VARIANT = -nitro
+    BUILD_INIT = 0
+endif
 ifeq ($(TIMESYNC),1)
     INIT_DEFS += -D__TIMESYNC__
 endif
@@ -87,7 +91,12 @@ $(INIT_BINARY): $(INIT_SRC)
 endif
 
 $(LIBRARY_RELEASE_$(OS)): $(INIT_BINARY)
+ifeq ($(NITRO),1)
+	cargo build --package libkrun-nitro --release
+	mv target/release/libkrun.so target/release/$(KRUN_BASE_$(OS))
+else
 	cargo build --release $(FEATURE_FLAGS)
+endif
 ifeq ($(SEV),1)
 	mv target/release/libkrun.so target/release/$(KRUN_BASE_$(OS))
 endif
@@ -100,7 +109,12 @@ endif
 	cp target/release/$(KRUN_BASE_$(OS)) $(LIBRARY_RELEASE_$(OS))
 
 $(LIBRARY_DEBUG_$(OS)): $(INIT_BINARY)
+ifeq ($(NITRO),1)
+	cargo build --package libkrun-nitro --release
+	mv target/release/libkrun.so target/release/$(KRUN_BASE_$(OS))
+else
 	cargo build $(FEATURE_FLAGS)
+endif
 ifeq ($(SEV),1)
 	mv target/debug/libkrun.so target/debug/$(KRUN_BASE_$(OS))
 endif
