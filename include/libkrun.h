@@ -2,6 +2,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+#ifndef _LIBKRUN_H
+#define _LIBKRUN_H
+
 /**
  * Sets the log level for the library.
  *
@@ -569,3 +572,5 @@ int32_t krun_set_nested_virt(uint32_t ctx_id, bool enabled);
  *  down.
  */
 int32_t krun_start_enter(uint32_t ctx_id);
+
+#endif // _LIBKRUN_H
