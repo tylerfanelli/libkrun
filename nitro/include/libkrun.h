@@ -26,4 +26,12 @@ int32_t krun_create_ctx();
  */
 int32_t krun_set_vm_config(uint32_t ctx_id, uint8_t num_vcpus, uint32_t ram_mib);
 
+/**
+ * Sets the path of the Enclave Image Format file to be used.
+ *
+ * Returns:
+ *  Zero on success or a negative error number on failure.
+ */
+int32_t krun_set_nitro_eif_file(uint32_t ctx_id, const char *c_eif_path);
+
 #endif // _LIBKRUN_H

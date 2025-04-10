@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use libc::c_char;
 use log::warn;
 use once_cell::sync::Lazy;
 use std::{
     collections::{hash_map::Entry, HashMap},
-    path::PathBuf,
+    ffi::CStr,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicI32, Ordering},
         Mutex,
@@ -31,6 +33,10 @@ impl NitroContextConfig {
     fn set_vm_config(&mut self, vcpus: u8, ram_mib: usize) {
         self.vcpus = Some(vcpus);
         self.ram_mib = Some(ram_mib);
+    }
+
+    fn set_eif_path(&mut self, path: PathBuf) {
+        self.eif = Some(path);
     }
 }
 
@@ -60,6 +66,29 @@ pub extern "C" fn krun_set_vm_config(ctx_id: u32, num_vcpus: u8, ram_mib: u32) -
 
     match CTX_MAP.lock().unwrap().entry(ctx_id) {
         Entry::Occupied(mut ctx_cfg) => ctx_cfg.get_mut().set_vm_config(num_vcpus, mem_size_mib),
+        Entry::Vacant(_) => return -libc::ENOENT,
+    }
+
+    KRUN_SUCCESS
+}
+
+#[allow(clippy::missing_safety_doc)]
+#[no_mangle]
+pub unsafe extern "C" fn krun_set_nitro_eif_file(ctx_id: u32, c_eif_path: *const c_char) -> i32 {
+    let eif_path = match CStr::from_ptr(c_eif_path).to_str() {
+        Ok(path) => path,
+        Err(_) => return -libc::EINVAL,
+    };
+
+    let eif_path = PathBuf::from(eif_path);
+
+    if !Path::new(&eif_path).exists() {
+        warn!("file {} does not exist", eif_path.display());
+        return -libc::EINVAL;
+    }
+
+    match CTX_MAP.lock().unwrap().entry(ctx_id) {
+        Entry::Occupied(mut ctx_cfg) => ctx_cfg.get_mut().set_eif_path(eif_path),
         Entry::Vacant(_) => return -libc::ENOENT,
     }
 
