@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+mod nitro;
+
 use libc::c_char;
 use log::warn;
+use nitro::*;
 use once_cell::sync::Lazy;
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -19,7 +22,7 @@ static CTX_MAP: Lazy<Mutex<HashMap<u32, NitroContextConfig>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 static CTX_IDS: AtomicI32 = AtomicI32::new(0);
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 #[allow(dead_code)]
 struct NitroContextConfig {
     vcpus: Option<u8>,
@@ -105,6 +108,19 @@ pub extern "C" fn krun_set_nitro_cid(ctx_id: u32, cid: u64) -> i32 {
         Entry::Occupied(mut ctx_cfg) => ctx_cfg.get_mut().set_cid(cid),
         Entry::Vacant(_) => return -libc::ENOENT,
     }
+
+    KRUN_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn krun_start_enter(ctx_id: u32) -> i32 {
+    let ctx = match CTX_MAP.lock().unwrap().entry(ctx_id) {
+        Entry::Occupied(ctx_cfg) => ctx_cfg.get().clone(),
+        Entry::Vacant(_) => return -libc::ENOENT,
+    };
+
+    let enclave = NitroEnclave::from(ctx);
+    enclave.run();
 
     KRUN_SUCCESS
 }

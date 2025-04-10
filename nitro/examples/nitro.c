@@ -59,5 +59,11 @@ int main(int argc, char *const argv[])
         return -1;
     }
 
+    if (err = krun_start_enter(ctx_id)) {
+        errno = -err;
+        perror("Error running nitro enclave");
+        return -1;
+    }
+
 	return 0;
 }

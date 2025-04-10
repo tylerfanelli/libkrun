@@ -40,4 +40,9 @@ int32_t krun_set_nitro_eif_file(uint32_t ctx_id, const char *c_eif_path);
  */
 int32_t krun_set_nitro_cid(uint32_t ctx_id, uint64_t cid);
 
+/**
+ * Starts and enters the nitro enclave with the configured parameters.
+ */
+int32_t krun_start_enter(uint32_t ctx_id);
+
 #endif // _LIBKRUN_H
