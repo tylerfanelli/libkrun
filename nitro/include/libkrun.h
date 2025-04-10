@@ -34,4 +34,10 @@ int32_t krun_set_vm_config(uint32_t ctx_id, uint8_t num_vcpus, uint32_t ram_mib)
  */
 int32_t krun_set_nitro_eif_file(uint32_t ctx_id, const char *c_eif_path);
 
+/**
+ * Set the unique context ID (CID) of the enclave. The CID is the socket address
+ * used by the vsock for enclave communication.
+ */
+int32_t krun_set_nitro_cid(uint32_t ctx_id, uint64_t cid);
+
 #endif // _LIBKRUN_H

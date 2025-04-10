@@ -24,7 +24,7 @@ static CTX_IDS: AtomicI32 = AtomicI32::new(0);
 struct NitroContextConfig {
     vcpus: Option<u8>,
     ram_mib: Option<usize>,
-    cid: Option<u8>,
+    cid: Option<u64>,
     eif: Option<PathBuf>,
     debug: bool,
 }
@@ -37,6 +37,10 @@ impl NitroContextConfig {
 
     fn set_eif_path(&mut self, path: PathBuf) {
         self.eif = Some(path);
+    }
+
+    fn set_cid(&mut self, cid: u64) {
+        self.cid = Some(cid);
     }
 }
 
@@ -89,6 +93,16 @@ pub unsafe extern "C" fn krun_set_nitro_eif_file(ctx_id: u32, c_eif_path: *const
 
     match CTX_MAP.lock().unwrap().entry(ctx_id) {
         Entry::Occupied(mut ctx_cfg) => ctx_cfg.get_mut().set_eif_path(eif_path),
+        Entry::Vacant(_) => return -libc::ENOENT,
+    }
+
+    KRUN_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn krun_set_nitro_cid(ctx_id: u32, cid: u64) -> i32 {
+    match CTX_MAP.lock().unwrap().entry(ctx_id) {
+        Entry::Occupied(mut ctx_cfg) => ctx_cfg.get_mut().set_cid(cid),
         Entry::Vacant(_) => return -libc::ENOENT,
     }
 
