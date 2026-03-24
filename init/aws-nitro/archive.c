@@ -196,6 +196,14 @@ int archive_extract(int nsm_fd, void *buf, size_t size)
     struct archive *reader, *writer;
     int ret;
 
+    char *x = (char *) buf;
+
+    printf("VERSION: |%s|\n", archive_version_string());
+    printf("(%lx) ", size);
+    for (int i = 0; i < 100; i++)
+    	printf("%x", (unsigned char) x[i]);
+    printf("\n");
+
     reader = reader_init(buf, size);
     if (reader == NULL)
         return -1;
